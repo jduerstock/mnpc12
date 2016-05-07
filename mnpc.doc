@@ -1,0 +1,482 @@
+
+
+
+
+
+
+     
+     
+     
+     
+     
+                         The Microcom MNP Library
+                          (Microsoft C Version)
+     
+     
+     
+                           PROGRAMMER'S MANUAL
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+                                Version 1.0
+     
+                             December 15, 1987
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+                              Microcom, Inc.
+                          1400 Providence Highway
+                            Norwood, MA 02062
+
+
+
+
+
+     
+     
+     The Microcom MNP Library and MNP are trademarks of Microcom, Inc.
+     Microsoft and MS-DOS are trademarks of Microsoft Corporation.  
+     IBM is a registered trademark of International Business Machines.
+     
+     
+     This manual is not subject to copyright and may be freely copied.
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     Questions relating to the Microcom MNP Library should be directed to
+     Microcom at:
+     
+                              Microcom, Inc.
+                       15303 Ventura Blvd., Suite 900
+                          Sherman Oaks, CA 91403
+                               (818)986-4212
+
+
+
+
+
+     
+     1. INTRODUCTION
+     
+          The Microcom MNP Library is a set of subroutines which implement the
+     stream mode of the link protocol in Microcom Networking Protocol (MNP).
+     This mode of the MNP link protocol is appropriate for interworking with MNP
+     error-correcting modems or with other software implementations which use
+     the Microcom MNP Library or other compatible software.
+     
+          This version of the library provides a set of C and assembly
+     language routines which are designed to be easily integrated into an
+     application program written in C and compiled using the Microsoft C
+     compiler (version 4.0).  Through the use of these routines, an
+     application is able to perform error-free data communications over a
+     physical-connection, such as one established on the public switched
+     telephone network.
+     
+          These MNP Library subroutines are especially for the IBM Personal
+     Computer family (and compatibles) under PCDOS (MS-DOS).  Hardware
+     facilities for asynchronous communications are required.
+
+
+
+
+
+     2. LIBRARY MODULES
+     
+          The Microcom MNP LIbrary is supplied in one of two forms, object
+     library only and object library with source.  The source version is de-
+     scribed in more detail in a file ('readme.doc') supplied as part of the
+     source version distribution.
+     
+          In the case of the object library only form, the distribution diskette
+     contains one file, mnp.lib, which includes the various object modules
+     which make up the MNP Library.
+     
+          When building the executable form of a particular application, the
+     mnp.lib file should be specified if the application calls any MNP sub-
+     routine described in this document.  The manner in which library modules
+     are specified for inclusion varies according to the linkage editor
+     employed in building the application program run module.
+
+
+
+
+
+     3. LINK MANAGEMENT
+     
+          In general, the MNP link follows the life of the normal physical-
+     connection.  Immediately after the physical-connection is made (e.g. after
+     a modem first reports carrier detected), the application must attempt the
+     establishment of the Link via the MNPCONNECT subroutine.  MNP-capable
+     modems which answer the incoming telephone call, for example, must receive
+     the Link establishment sequence within 4 seconds of physical-connection
+     establishment.  If a link is not attempted within this period, such modems
+     may fall back to a normal connection and it will not be possible to provide
+     a reliable connection on that particular call.
+     
+          Link termination, performed via the MNPDISCONNECT call, should
+     immediately precede termination of the physical-connection, i.e. right
+     before hanging up the telephone.  Note that the Link is active for the
+     entire duration of the physical-connection.
+     
+          During the data phase of the Link (i.e. after establishment but before
+     termination), the Link must be kept running by allowing the Link code to
+     execute periodically.  Any of the data phase calls, namely MNPSEND,
+     MNPRECEIVE, MNPSTATUS, and MNPBREAK, will accomplish this.  One of these
+     routines must be called every 250ms or so which means that the Link code
+     gets a chance to run about 4 times per second.  The absolute interval is
+     not critical and it may be possible to reduce the frequency as well and
+     still get reasonable performance.  Polling the Link code, however, must
+     occur with a predictable frequency otherwise the Link may be lost.  When
+     the Link is lost, an MNP error-correcting modem may clear the call.
+     
+          When a Link is in progress, all line I/O is performed via the
+     appropriate MNP call rather than by using other C mechanisms.  It 
+     may be the case, however, that the com port opened elsewhere in the
+     application, must remain open.
+     
+          Data sent and received on the Link will be "chunked" depending on the
+     number of bytes which happen to be sent in a single data message.  The
+     maximum amount in a single message is 64 bytes.  This "chunking" is not
+     noticeable to the sender but can be perceived by the data receiver.
+     Strings of data may be split over more than one data message and some
+     messages may have to be sent more than once when there is noise on the
+     connection.  Retransmission can be seen by the application as an
+     interruption, possibly in the middle of some data string.  The application
+     should be examined to see if there are any cases involving timing
+     dependencies which could be adversely effected by this kind of 
+     irregularity in the data flow.
+
+
+
+
+
+     4. LINK INTERFACE SUBROUTINES
+     
+     4.1  Link Establishment - MNPCONNECT
+     
+          MNPCONNECT is used to establish a Link.  It is called after the
+     physical-connection has been established.  It can take up to 5 seconds
+     for an MNPCONNECT call to complete.
+     
+          MNPCONNECT has the following parameters:
+     
+               RATE - an integer which indicates the speed of the
+                      physical-connection, as follows:
+     
+                          1 = 110 bps
+                          2 = 300 bps
+                          4 = 1200 bps
+                          5 = 2400 bps
+     
+                      [Note: Other speeds are not supported in this
+                       version of the Microcom MNP Library.]
+     
+               FORMAT - an integer which indicates the data format,
+                        as follows:
+     
+                         0 = 8 data bits, no parity
+                         1 = 7 data bits, even parity
+                         2 = 7 data bits, odd parity
+                         3 = 7 data bits, mark parity
+                         4 = 7 data bits, space parity
+     
+                      [Note: In this Library version, once the Link
+                       is established, it is not possible to change
+                       format.]
+     
+               PORT -  an integer which indicates the communications
+                       port, as follows:
+     
+                         1 = COM1
+                         2 = COM2
+     
+                      [Note: This Library version does not support
+                       other comm ports.  Also, COM2 cannot be speci-
+                       fied if no COM1 is present in the system.]
+     
+               MODE - an integer which indicates the role in link
+                      establishment, as follows:
+     
+                         0 = link initiator (caller)
+                         1 = link accepter (answerer)
+     
+
+
+
+           The function returns an integer value, as follows:
+
+               RETCODE - an integer returned to the caller which
+                         indicates the result of the link
+                         establishment attempt, as follows:
+     
+                         0 = success (link established)
+     
+                         -64 - failure, no additional info
+                         -65 - failure, timeout (no remote response)
+                         -66 - failure, physical-connection lost
+                               (carrier lost)
+                         -70 - failure, incompatible MNP
+                         -72 - failure, remote protocol error
+     
+                      [Note: -70 and -72 should never occur.]
+     
+     
+          MNPCONNECT is called as follows:
+     
+              RETCODE = MNPCONNECT(RATE,FORMAT,PORT,MODE);
+
+
+
+
+
+     4.2  Link Termination - MNPDISCONNECT
+     
+          MNPDISCONNECT has two functions, to send the appropriate protocol
+     message to the other side to indicate Link termination and to reset the PC
+     interrupt environment.  MNPDISCONNECT must always be called if MNPCONNECT
+     had been called previously.  This is so even for establishment failure or
+     for loss of the physical-connection (i.e. carrier lost).
+     
+          MNPDISCONNECT has no parameters and returns no value.  It is
+     called as follows:
+     
+                            MNPDISCONNECT();
+
+
+
+
+
+     4.3  Send Data - MNPSEND
+     
+          MNPSEND is called to copy data to be sent on the Link from the
+     application into the MNP transmit buffer.
+     
+          MNPSEND has parameters as follows:
+     
+               SNDBUF - a pointer to the user char buffer from which
+                        transmit data is to be copied.
+     
+               BUFLEN - an integer which indicates the maximum
+                        number of data bytes which can be copied
+                        from the user buffer
+     
+           The function returns an integer value, as follows:
+
+               RETCODE - an integer returned to the caller which
+                         indicates the number of bytes copied
+                         or a Link error condition, as follows:
+     
+                         positive int = number of bytes copied
+                                         0=no bytes copied
+     
+                         -64 = link terminated, retransmission limit
+                               exceeded
+                         -65 = link terminated, unable to send
+                         -66 = link terminated, carrier lost
+                         -67 = link terminated, remote disconnected
+     
+          MNPSEND is called as follows:
+     
+                  RETCODE = MNPSEND(&SNDBUF,BUFLEN)
+
+
+
+
+
+     4.4  Receive Data - MNPRECEIVE
+     
+          MNPRECEIVE is called to copy data received on the Link into the
+     application.  MNPRECEIVE transfers all available data up to the size of the
+     application buffer.  MNPRECEIVE returns immediately if no data is
+     available.
+     
+          MNPRECEIVE has the following parameters:
+     
+               RCVBUF - a pointer to the user char buffer into which
+                        received data is to be copied. This buffer must
+                        be at least as long as the value of BUFLEN.
+     
+               BUFLEN - an integer which indicates the maximum
+                        number of data bytes which can be copied
+                        into the user buffer
+
+          The function returns an integer value, as follows:
+    
+               RETCODE - an integer returned to the caller which
+                         indicates the number of bytes copied
+                         or a Link error condition, as follows:
+     
+                         positive int = number of bytes copied
+                                        0=no bytes available.
+     
+                         -64 = link terminated.  retransmission limit
+                               exceeded
+                         -65 = link terminated, unable to send
+                         -66 = link terminated,  carrier lost
+                         -67 = link terminated, remote disconnected
+     
+          MNPRECEIVE is called as follows:
+     
+                  RETCODE =  MNPRECEIVE(&RCVBUF,BUFLEN);
+
+
+
+
+
+     4.5  Link Status - MNPSTATUS
+     
+          MNPSTATUS is called to return to the application the status of the
+     Link and to read parameters which indicate the availability of received
+     data or the ability to enqueue data for transmission.
+     
+          MNPSTATUS has a structure as its parameter, with members
+     as follows:
+     
+               PSTATUS - an integer which indicates the condition of
+                         the physical-connection, as follows:
+     
+                         0 = not connected (carrier not present)
+                         1 = connected (carrier present)
+     
+               LSTATUS - an integer which indicates the condition of
+                         Link, as follows:
+     
+                         0 = link not established (i.e. link
+                             terminated)
+                         1 = link established
+     
+               SCOUNT - an integer which indicates the number of
+                        bytes free in the Link send buffer.  This is
+                        the number of bytes which can be completely
+                        copied to the Link transmit code via an
+                        MNPSEND call.
+     
+               RCOUNT - an integer which indicates the number of
+                        received data bytes which are available to
+                        be copied into the application via MNPRECEIVE
+     
+               ALLSENT - an integer which indicates whether or not
+                         all data passed to the Link code has been
+                         successfully sent and acknowledged, as
+                         follows:
+     
+                         0 = all data not sent
+                         1 = all data sent
+     
+     
+          MNPSTATUS is called as follows:
+     
+                      MNPSTATUS(&STATUS_BLOCK);
+
+
+
+
+
+     4.6  Send Signal - MNPBREAK
+     
+          MNPBREAK is called to send a signal to the remote DTE.  When the
+     remote side is an MNP error-correcting modem, an MNPBREAK call causes the
+     remote modem to send a break signal (continuous spacing) to its attached
+     DTE.
+     
+          MNPBREAK employs the MNP Link Protocol's reliable attention
+     mechanism in 'destructive mode'.  That is, when MNPBREAK is called, the
+     Link is reset and any data pending transmission on the link is discarded as
+     is any received data which has not been read via the MNPRECEIVE subroutine.
+     Data may also be discarded at the remote side of the Link.
+     
+          MNPBREAK has no parameters but returns an integer value,
+     as follows:
+     
+               RETCODE - an integer returned to the caller which
+                         indicates the result of the MNPBREAK call
+                         or a Link error condition, as follows:
+     
+                         0 = break initiated
+     
+                         -64 = link terminated, retransmission limit
+                               exceeded
+                         -65 = link terminated, unable to send
+                         -66 = link terminated, carrier lost
+                         -67 = link terminated, remote disconnected
+                         -75 = break not supported (remote did not
+                               negotiate attention support for this
+                               Link)
+                         -76 = previous break still in progress
+     
+     
+          MNPBREAK is called as follows:
+     
+                          RETCODE = MNPBREAK();
+     
+     
+     
+          [Note that the MNP Library does not support application
+     notification of the receipt of the MNP attention message and
+     hence it is assumed that MNPBREAK will only be  employed when the
+     remote side of the connection is an MNP error-correcting
+     modem.]

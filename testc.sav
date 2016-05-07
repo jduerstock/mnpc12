@@ -1,0 +1,155 @@
+#include <stdio.h>
+#include <graph.h>
+#include <asynch_2.h>
+#include <asynch_m.h>
+
+main ()
+{
+unsigned int com_port,
+	i,
+	no_read,
+	no_sent,
+	retcode,
+	status;
+unsigned char iobuf[200],
+	mresp[10],
+	md_cmd[40],
+	rcv_data[80];
+
+unsigned char ch;
+POPT option_rec;
+MDPARM *parm;
+
+struct
+	{
+	int p_stat;
+	int l_stat;
+	int s_cnt;
+	int r_cnt;
+ 	int all_sent;
+	} lstat;
+
+/*--- Display herald screen 
+*/
+_clearscreen(_GCLEARSCREEN);
+cprintf("-------------------------------------------------------------------");
+cprintf("----------\r\n\r\n");
+cprintf("                      MNP Link Demonstration Program\r\n\r\n");
+cprintf("      This simple terminal emulation program demonstrates the use");
+cprintf("\r\n");
+cprintf("      of the Microcom MNP Library to provide error-free data\r\n");
+cprintf("      communications.\r\n\r\n\r\n");
+cprintf("      Press any key to begin...\r\n\r\n");
+cprintf("-------------------------------------------------------------------");
+cprintf("----------\r\n\r\n");
+
+/*--- Wait for user to start
+*/
+ch=getch();
+
+/*--- Get user parameter selections
+*/
+com_port=2;
+
+/*--- Open port
+*/
+if (retcode = open_a2(com_port,50,50,0,0))
+	printf("attempt to open port failed-%c\n",retcode);
+
+retop_a2(com_port,&option_rec);
+option_rec.baud_rate=2400;
+option_rec.data_bits=8;
+option_rec.stop_bits=1;
+option_rec.parity=0;
+setop_a2(com_port,&option_rec);
+
+/*--- Initialize modem (Hayes 2400-compatible assumed)
+*/
+parm_md(&parm);
+parm->mport_no=com_port;
+parm->resp_delay=19;
+
+cmd_md("V0\N0",&no_sent);
+wait_a1(parm->resp_delay);
+
+/*--- Dial MNP-capable remote and wait for connect
+*/
+iflsh_a1(parm->mport_no);
+
+cprintf("dialing Compuserv at 902-0488...\n\r");
+cmd_md("dt9020488",&no_sent);
+
+wait_a1(parm->resp_delay);
+iflsh_a1(parm->mport_no);
+
+for (i=0;i<30;i++)
+	{
+	retcode=resp_md(mresp,2,&no_read);
+	if (no_read == 0)
+		continue;
+	else
+		if ((mresp[0] == '1')|(mresp[0] == '5') )
+			cprintf("-- physical-connection established.\n\r");
+		else
+			cprintf(" Call failed. Modem response=%c\n\r",mresp[0]);
+	break;
+}
+
+if (mresp[0] != '3')
+	{
+/*--- Initiate Link
+*/
+	cprintf("\n\restablishing MNP link-connection...\n\r");
+	wait_a1(19);
+	retcode=mnpconnect(5,1,2,0);
+	if (retcode == 0)
+		{
+		_clearscreen(_GCLEARSCREEN);
+		cprintf("-- link-connection established.\n\r");
+		}
+	else
+		cprintf("-- link establishment failed. retcode= %i\n\r",retcode);
+
+/*--- Start terminal emulation with a clear screen and tell the user
+** how to terminate the program.
+*/
+	if (retcode == 0)
+		{
+
+/*--- Data phase of Link
+*/
+		wait_a1(80);
+		ch=0x3;
+		mnpsend(&ch,1);
+
+		for (;;)
+			{
+			mnpstatus(&lstat);
+			if (!lstat.p_stat || !lstat.l_stat)
+				{
+				cprintf("\r\n-- link-connection lost\r\n");
+				break;
+				}
+			if (lstat.r_cnt > 0)
+				{
+				retcode=mnpreceive(rcv_data,79);
+				for (i = 0; i < retcode; i++)
+					ch=putchar(rcv_data[i]);
+				}
+			if (kbhit())
+				{
+				ch=getch();
+				retcode=mnpsend(&ch,1);
+				}
+			}
+		}
+/*--- Exit
+*/
+	cprintf("\n\r-- terminating link-connection...\n\r");
+	mnpdisconnect();
+}
+close_a2(com_port);
+cprintf("\n\rend of sample program\n\r");
+wait_a1(19);
+}
+

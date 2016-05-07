@@ -1,0 +1,45 @@
+April 16, 1987
+
+Microcom MNP Library
+(Microsoft C Version)
+
+
+This diskette contains code and documentation for an IBM 
+PC/compatible implementation of Class 2 of the MNP link 
+protocol.  This is suitable for use with a Microsoft C
+application using the small code/small data model.
+See the programmer's manual, in file 'mnpc.doc', for
+further details.
+
+These files are in the public domain and may be copied, 
+distributed, etc.  Note, however, that these materials are 
+made available by Microcom, Inc., on an 'as is' basis and, 
+while it is believed that the code here is a correct 
+implementation,  Microcom does not warrant them to be error-
+free or suitable for any particular purpose.
+
+The files are as follows:
+
+	mnpc.doc - programmer's guide to the MNP library
+
+	bldc.bat - batch file which builds the MNP object
+                library, 'mnp.lib', from the source files
+                on this diskette (Note: Microsoft C         
+                compiler, Macro Assembler and librarian
+                are required)
+
+	mnp.lib - MNP object library
+
+	*.c/*.asm - MNP source files
+
+	testc.c - a sample program - a simple terminal 
+			emulator
+	
+Direct questions and report problems to 
+
+Gregory Pearson
+Microcom, Inc.
+15303 Ventura Blvd, Suite 900
+Sherman Oaks, CA 91403
+(818)986-4212
+FAX (818)986-4212
